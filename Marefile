@@ -1,0 +1,47 @@
+
+
+if(tool == "vcxproj") {
+  platforms = { "Win32", "x64" }
+}
+
+if configuration == "Debug" {
+  defines += { "_DEBUG", "DEBUG" }
+} else {
+  defines += { "NDEBUG" }
+}
+
+targets = {
+
+  LockFreeQueue = cppApplication + {
+    dependencies = { "libnstd" }
+    buildDir = "Build/$(configuration)"
+    includePaths = { "Ext/libnstd/include" }
+    libPaths = { "Build/$(configuration)/libnstd" }
+    libs = { "nstd" }
+    root = "Src"
+    files = {
+      "*.cpp" = cppSource
+      "*.h"
+    }
+    if tool == "vcxproj" {
+      linkFlags += { "/SUBSYSTEM:CONSOLE" }
+    }
+    if platform == "Linux" {
+      libs += { "pthread", "rt" }
+    }
+  }
+  
+  libnstd = cppStaticLibrary + {
+    folder = "Libraries"
+    includePaths = { "Ext/libnstd/include" }
+    buildDir = "Build/$(configuration)/$(target)"
+    root = { "Ext/libnstd/src", "Ext/libnstd/include/nstd" }
+    files = {
+      "Ext/libnstd/src/*.cpp" = cppSource,
+      "Ext/libnstd/include/nstd/*.h"
+    }
+    if tool == "vcxproj" {
+      defines += { "_CRT_SECURE_NO_WARNINGS" }
+    }
+  }
+}
