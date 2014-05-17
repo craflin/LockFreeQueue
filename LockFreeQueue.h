@@ -49,16 +49,17 @@ public:
     if(Atomic::compareAndSwap(_freeNodes, freeNodes, freeNodes - 1) != freeNodes)
       goto begin;
     size_t writeIndex = Atomic::increment(_writeIndex);
-    Node& node = queue[writeIndex % _capacity];
-    ASSERT(node.state == Node::free);
-    new (&node.data)T(data);
+    Node* node = &queue[writeIndex % _capacity];
+    ASSERT(node->state == Node::free);
+    new (&node->data)T(data);
     //Atomic::swap(node.state, Node::set);
-    node.state = Node::set;
+    node->state = Node::set;
   commit:
     size_t safeWriteIndex = _safeWriteIndex;
     size_t nextSafeWriteIndex = safeWriteIndex + 1;
   commitNext:
-    if(Atomic::compareAndSwap(queue[nextSafeWriteIndex % _capacity].state, Node::set, Node::occupied) == Node::set)
+    node = &queue[nextSafeWriteIndex % _capacity];
+    if(node->state == Node::set && Atomic::compareAndSwap(node->state, Node::set, Node::occupied) == Node::set)
     {
       if(Atomic::compareAndSwap(_safeWriteIndex, safeWriteIndex, nextSafeWriteIndex) == safeWriteIndex)
       {
@@ -68,7 +69,7 @@ public:
         goto commitNext;
       }
       else
-        queue[nextSafeWriteIndex % _capacity].state = Node::set;
+        node->state = Node::set;
       goto commit;
     }
     return true;
@@ -83,17 +84,18 @@ public:
     if(Atomic::compareAndSwap(_occupiedNodes, occupiedNodes, occupiedNodes - 1) != occupiedNodes)
       goto begin;
     size_t readIndex = Atomic::increment(_readIndex);
-    Node& node = queue[readIndex % _capacity];
-    ASSERT(node.state == Node::occupied);
-    result = node.data;
-    (&node.data)->~T();
+    Node* node = &queue[readIndex % _capacity];
+    ASSERT(node->state == Node::occupied);
+    result = node->data;
+    (&node->data)->~T();
     //Atomic::swap(node.state, Node::unset);
-    node.state = Node::unset;
+    node->state = Node::unset;
   release:
     size_t safeReadIndex = _safeReadIndex;
     size_t nextSafeReadIndex = safeReadIndex + 1;
   releaseNext:
-    if(Atomic::compareAndSwap(queue[nextSafeReadIndex % _capacity].state, Node::unset, Node::free) == Node::unset)
+    node = &queue[nextSafeReadIndex % _capacity];
+    if(node->state == Node::unset && Atomic::compareAndSwap(node->state, Node::unset, Node::free) == Node::unset)
     {
       if(Atomic::compareAndSwap(_safeReadIndex, safeReadIndex, nextSafeReadIndex) == safeReadIndex)
       {
@@ -103,7 +105,7 @@ public:
         goto releaseNext;
       }
       else
-        queue[nextSafeReadIndex % _capacity].state = Node::unset;
+        node->state = Node::unset;
       goto release;
     }
     return true;
