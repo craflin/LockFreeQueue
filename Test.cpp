@@ -5,20 +5,18 @@
 #include <nstd/List.h>
 #include <nstd/Time.h>
 
-//#include "LockFreeQueue.h"
+#include "LockFreeQueue.h"
 
-#include "NaiveQueue.h"
-#define LockFreeQueue NaiveQueue
+//#include "NaiveQueue.h"
+//#define LockFreeQueue NaiveQueue
 
 uint_t producerThread(void_t* param)
 {
   LockFreeQueue<int_t>* queue = (LockFreeQueue<int_t>*)param;
-  for(int i = 0; i < 50000; ++i)
+  for(int i = 0; i < 500000; ++i)
   {
     while(!queue->push(12))
       Thread::yield();
-    for(int i = 0; i < 100; ++i)
-      Time::time();
   }
   return 0;
 }
@@ -27,12 +25,10 @@ uint_t consumerThread(void_t* param)
 {
   LockFreeQueue<int_t>* queue = (LockFreeQueue<int_t>*)param;
   int_t val;
-  for(int i = 0; i < 50000; ++i)
+  for(int i = 0; i < 500000; ++i)
   {
     while(!queue->pop(val))
       Thread::yield();
-    for(int i = 0; i < 100; ++i)
-      Time::time();
   }
   return 0;
 }

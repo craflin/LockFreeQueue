@@ -3,7 +3,6 @@
 
 #include <nstd/Mutex.h>
 #include <nstd/Memory.h>
-#include <nstd/Signal.h>
 
 template <typename T> class NaiveQueue
 {
@@ -40,41 +39,30 @@ public:
   
   bool_t push(const T& data)
   {
-  begin:
     mutex.lock();
     if(_occupiedNodes == _capacity)
     {
-      writableSignal.reset();
       mutex.unlock();
-      //return false; // queue is full
-      writableSignal.wait();
-      goto begin;
+      return false; // queue is full
     }
     ++_writeIndex;
     Node& node = queue[_writeIndex % _capacity];
     ASSERT(node.state == Node::free);
     new (&node.data)T(data);
     node.state =  Node::occupied;
-    if(++_occupiedNodes == 1)
-      readableSignal.set();
+    ++_occupiedNodes;
     mutex.unlock();
     return true;
   }
   
   bool_t pop(T& result)
   {
-  begin:
     mutex.lock();
     if(_occupiedNodes == 0)
     {
-      readableSignal.reset();
       mutex.unlock();
-      //return false; // queue is empty
-      readableSignal.wait();
-      goto begin;
+      return false; // queue is empty
     }
-    if(_occupiedNodes == _capacity)
-      writableSignal.set();
     --_occupiedNodes;
     ++_readIndex;
     Node& node = queue[_readIndex % _capacity];
@@ -107,7 +95,4 @@ private:
   size_t _writeIndex;
   size_t _readIndex;
   Mutex mutex;
-
-  Signal writableSignal;
-  Signal readableSignal;
 };

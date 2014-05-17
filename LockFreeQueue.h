@@ -3,7 +3,6 @@
 
 #include <nstd/Atomic.h>
 #include <nstd/Memory.h>
-#include <nstd/Signal.h>
 
 template <typename T> class LockFreeQueue
 {
@@ -46,13 +45,7 @@ public:
   begin:
     size_t freeNodes = _freeNodes;
     if(freeNodes == 0)
-    {
-      //return false; // queue is full
-      writableSignal.reset();
-      if(_freeNodes == 0)
-        writableSignal.wait();
-      goto begin;
-    }
+      return false; // queue is full
     if(Atomic::compareAndSwap(_freeNodes, freeNodes, freeNodes - 1) != freeNodes)
       goto begin;
     size_t writeIndex = Atomic::increment(_writeIndex);
@@ -69,8 +62,7 @@ public:
     {
       if(Atomic::compareAndSwap(_safeWriteIndex, safeWriteIndex, nextSafeWriteIndex) == safeWriteIndex)
       {
-        if(Atomic::increment(_occupiedNodes) == 1)
-          readableSignal.set();
+        Atomic::increment(_occupiedNodes);
         safeWriteIndex = nextSafeWriteIndex;
         ++nextSafeWriteIndex;
         goto commitNext;
@@ -87,13 +79,7 @@ public:
   begin:
     size_t occupiedNodes = _occupiedNodes;
     if(occupiedNodes == 0)
-    {
-      //return false; // queue is empty
-      readableSignal.reset();
-      if(_occupiedNodes == 0)
-        readableSignal.wait();
-      goto begin;
-    }
+      return false; // queue is empty
     if(Atomic::compareAndSwap(_occupiedNodes, occupiedNodes, occupiedNodes - 1) != occupiedNodes)
       goto begin;
     size_t readIndex = Atomic::increment(_readIndex);
@@ -111,8 +97,7 @@ public:
     {
       if(Atomic::compareAndSwap(_safeReadIndex, safeReadIndex, nextSafeReadIndex) == safeReadIndex)
       {
-        if(Atomic::increment(_freeNodes) == 1)
-          writableSignal.set();
+        Atomic::increment(_freeNodes);
         safeReadIndex = nextSafeReadIndex;
         ++nextSafeReadIndex;
         goto releaseNext;
@@ -147,7 +132,4 @@ private:
   volatile size_t _safeWriteIndex;
   volatile size_t _readIndex;
   volatile size_t _safeReadIndex;
-
-  Signal writableSignal;
-  Signal readableSignal;
 };
