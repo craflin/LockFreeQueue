@@ -8,10 +8,12 @@
 #include "LockFreeQueue.h"
 #include "LockFreeQueue2.h"
 #include "MutexLockQueue.h"
+#include "SpinLockQueue.h"
 
 //#define TestQueue LockFreeQueue
 //#define TestQueue LockFreeQueue2
 #define TestQueue MutexLockQueue
+//#define TestQueue SpinLockQueue
 
 uint_t producerThread(void_t* param)
 {
