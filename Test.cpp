@@ -6,19 +6,19 @@
 #include <nstd/Time.h>
 
 #include "LockFreeQueue.h"
-#include "LockFreeQueue2.h"
+#include "LockFreeQueueSlow1.h"
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
 
-//#define TestQueue LockFreeQueue
-//#define TestQueue LockFreeQueue2
-#define TestQueue MutexLockQueue
+#define TestQueue LockFreeQueue
+//#define TestQueue LockFreeQueueSlow1
+//#define TestQueue MutexLockQueue
 //#define TestQueue SpinLockQueue
 
 uint_t producerThread(void_t* param)
 {
   TestQueue<int_t>* queue = (TestQueue<int_t>*)param;
-  for(int i = 0; i < 100000; ++i)
+  for(int i = 0; i < 10000000; ++i)
   {
     while(!queue->push(12))
       Thread::yield();
@@ -30,7 +30,7 @@ uint_t consumerThread(void_t* param)
 {
   TestQueue<int_t>* queue = (TestQueue<int_t>*)param;
   int_t val;
-  for(int i = 0; i < 100000; ++i)
+  for(int i = 0; i < 10000000; ++i)
   {
     while(!queue->pop(val))
       Thread::yield();
@@ -101,13 +101,13 @@ int_t main(int_t argc, char_t* argv[])
   {
     TestQueue<int_t> queue(10000);
     List<Thread*> threads;
-    for(int_t i = 0; i < 60; ++i)
+    for(int_t i = 0; i < 4; ++i)
     {
       Thread* thread = new Thread;
       thread->start(producerThread, &queue);
       threads.append(thread);
     }
-    for(int_t i = 0; i < 60; ++i)
+    for(int_t i = 0; i < 4; ++i)
     {
       Thread* thread = new Thread;
       thread->start(consumerThread, &queue);

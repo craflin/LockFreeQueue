@@ -10,128 +10,101 @@ public:
   explicit LockFreeQueue(size_t capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
-    for(Node* node = queue, * end = queue + _capacity; node < end; ++node)
-      node->state = Node::free;
+    for(size_t i = 0; i < capacity; ++i)
+    {
+      queue[i].tail = i;
+      queue[i].head = i - 1;
+    }
 
-    _freeNodes = capacity;
-    _occupiedNodes = 0;
-    _writeIndex = -1;
-    _safeWriteIndex = -1;
-    _readIndex = -1;
-    _safeReadIndex = -1;
+    _tail = 0;
+    _head = 0;
   }
 
   ~LockFreeQueue()
   {
-    for(Node* node = queue, * end = queue + _capacity; node < end; ++node)
-      switch(node->state)
-      {
-      case Node::set:
-      case Node::occupied:
-        (&node->data)->~T();
-        break;
-      default:
-        break;
-      }
+    for(size_t i = _head; i != _tail; ++i)
+      (&queue[i % _capacity].data)->~T();
+
     Memory::free(queue);
   }
   
   size_t capacity() const {return _capacity;}
   
-  size_t size() const {return _capacity - _freeNodes;}
+  size_t size() const
+  {
+    size_t head = _head;
+    // memory barrier?
+    return _tail - head;
+  }
   
   bool_t push(const T& data)
   {
   begin:
-    size_t freeNodes = _freeNodes;
-    if(freeNodes == 0)
-      return false; // queue is full
-    if(Atomic::compareAndSwap(_freeNodes, freeNodes, freeNodes - 1) != freeNodes)
-      goto begin;
-    size_t writeIndex = Atomic::increment(_writeIndex);
-    Node* node = &queue[writeIndex % _capacity];
-    ASSERT(node->state == Node::free);
-    new (&node->data)T(data);
-    //Atomic::swap(node.state, Node::set);
-    node->state = Node::set;
-  commit:
-    size_t safeWriteIndex = _safeWriteIndex;
-    size_t nextSafeWriteIndex = safeWriteIndex + 1;
-  commitNext:
-    node = &queue[nextSafeWriteIndex % _capacity];
-    if(node->state == Node::set && Atomic::compareAndSwap(node->state, Node::set, Node::occupied) == Node::set)
+    size_t tail = _tail;
+    Node* node = &queue[tail % _capacity];
+    size_t newTail = tail + 1;
+    size_t nodeTail = node->tail;
+    if(nodeTail == tail)
     {
-      if(Atomic::compareAndSwap(_safeWriteIndex, safeWriteIndex, nextSafeWriteIndex) == safeWriteIndex)
+      nodeTail = Atomic::compareAndSwap(node->tail, tail, newTail);
+      if(nodeTail == tail)
       {
-        Atomic::increment(_occupiedNodes);
-        safeWriteIndex = nextSafeWriteIndex;
-        ++nextSafeWriteIndex;
-        goto commitNext;
+        Atomic::compareAndSwap(_tail, tail, newTail);
+        new (&node->data)T(data);
+        // memory barrier?
+        node->head = tail;
+        return true;
       }
-      else
-        node->state = Node::set;
-      goto commit;
     }
-    return true;
+    if(nodeTail == newTail)
+    {
+      Atomic::compareAndSwap(_tail, tail, newTail);
+      goto begin;
+    }
+    else
+      return false;
   }
-  
+
   bool_t pop(T& result)
   {
   begin:
-    size_t occupiedNodes = _occupiedNodes;
-    if(occupiedNodes == 0)
-      return false; // queue is empty
-    if(Atomic::compareAndSwap(_occupiedNodes, occupiedNodes, occupiedNodes - 1) != occupiedNodes)
-      goto begin;
-    size_t readIndex = Atomic::increment(_readIndex);
-    Node* node = &queue[readIndex % _capacity];
-    ASSERT(node->state == Node::occupied);
-    result = node->data;
-    (&node->data)->~T();
-    //Atomic::swap(node.state, Node::unset);
-    node->state = Node::unset;
-  release:
-    size_t safeReadIndex = _safeReadIndex;
-    size_t nextSafeReadIndex = safeReadIndex + 1;
-  releaseNext:
-    node = &queue[nextSafeReadIndex % _capacity];
-    if(node->state == Node::unset && Atomic::compareAndSwap(node->state, Node::unset, Node::free) == Node::unset)
+    size_t head = _head;
+    Node* node = &queue[head % _capacity];
+    size_t newHead = head + 1;
+    size_t nodeHead = node->head;
+    if(nodeHead == head)
     {
-      if(Atomic::compareAndSwap(_safeReadIndex, safeReadIndex, nextSafeReadIndex) == safeReadIndex)
+      nodeHead = Atomic::compareAndSwap(node->head, head, newHead);
+      if(nodeHead == head)
       {
-        Atomic::increment(_freeNodes);
-        safeReadIndex = nextSafeReadIndex;
-        ++nextSafeReadIndex;
-        goto releaseNext;
+        Atomic::compareAndSwap(_head, head, newHead);
+        result = node->data;
+        (&node->data)->~T();
+        // memory barrier?
+        node->tail = head + _capacity;
+        return true;
       }
-      else
-        node->state = Node::unset;
-      goto release;
     }
-    return true;
+    if(nodeHead == newHead)
+    {
+      Atomic::compareAndSwap(_head, head, newHead);
+      goto begin;
+    }
+    else
+      return false;
   }
 
 private:
   struct Node
   {
     T data;
-    enum State
-    {
-      free,
-      set,
-      occupied,
-      unset,
-    };
-    volatile int_t state;
+    volatile size_t head;
+    volatile size_t tail;
   };
 
 private:
   size_t _capacity;
   Node* queue;
-  volatile size_t _freeNodes;
-  volatile size_t _occupiedNodes;
-  volatile size_t _writeIndex;
-  volatile size_t _safeWriteIndex;
-  volatile size_t _readIndex;
-  volatile size_t _safeReadIndex;
+  volatile size_t _head;
+  volatile size_t _tail;
 };
