@@ -10,9 +10,9 @@
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
 
-static const int testItems = 1000000 * 16;
-static const int testThreadConsumerThreads = 4;
-static const int testThreadProducerThreads = 4;
+static const int testItems = 250000 * 64;
+static const int testThreadConsumerThreads = 8;
+static const int testThreadProducerThreads = 8;
 static const int testItemsPerConsumerThread = testItems / testThreadConsumerThreads;
 static const int testItemsPerProducerThread = testItems / testThreadProducerThreads;
 
@@ -37,14 +37,30 @@ private:
 
 volatile size_t producerSum;
 volatile size_t consumerSum;
+volatile timestamp_t maxPushDuration;
+volatile timestamp_t maxPopDuration;
 
 uint_t producerThread(void_t* param)
 {
   IQueue<int_t>* queue = (IQueue<int_t>*)param;
   for(int_t i = 0; i < testItemsPerProducerThread; ++i)
   {
-    while(!queue->push(i))
-      Thread::yield();
+    for(;;)
+    {
+      timestamp_t startTime = Time::microTicks();
+      while(!queue->push(i))
+        Thread::yield();
+      {
+        timestamp_t duration = Time::microTicks() - startTime;
+        for(;;)
+        {
+          timestamp_t lmaxPushDuration = maxPushDuration;
+          if(duration <= lmaxPushDuration || Atomic::compareAndSwap(maxPushDuration, lmaxPushDuration, duration) == lmaxPushDuration)
+            break;
+        }
+        break;
+      }
+    }
     Atomic::fetchAndAdd(producerSum, i);
   }
   return 0;
@@ -56,8 +72,22 @@ uint_t consumerThread(void_t* param)
   int_t val;
   for(int_t i = 0; i < testItemsPerConsumerThread; ++i)
   {
-    while(!queue->pop(val))
-      Thread::yield();
+    for(;;)
+    {
+      timestamp_t startTime = Time::microTicks();
+      while(!queue->pop(val))
+        Thread::yield();
+      {
+        timestamp_t duration = Time::microTicks() - startTime;
+        for(;;)
+        {
+          timestamp_t lmaxPopDuration = maxPopDuration;
+          if(duration <= lmaxPopDuration || Atomic::compareAndSwap(maxPopDuration, lmaxPopDuration, duration) == lmaxPopDuration)
+            break;
+        }
+        break;
+      }
+    }
     Atomic::fetchAndAdd(consumerSum, val);
   }
   return 0;
@@ -65,7 +95,7 @@ uint_t consumerThread(void_t* param)
 
 template<class Q> void_t testQueue(const String& name)
 {
-  Console::printf(_T("Testing %s... "), (const tchar_t*)name);
+  Console::printf(_T("Testing %s... \n"), (const tchar_t*)name);
 
   volatile int32_t int32 = 0;
   volatile uint32_t uint32 = 0;
@@ -123,10 +153,12 @@ template<class Q> void_t testQueue(const String& name)
 
   producerSum = 0;
   consumerSum = 0;
+  maxPushDuration = 0;
+  maxPopDuration = 0;
 
-  timestamp_t startTime = Time::ticks();
+  timestamp_t microStartTime = Time::microTicks();
   {
-    TestQueue<int_t, Q> queue(10000);
+    TestQueue<int_t, Q> queue(100);
     List<Thread*> threads;
     for(int_t i = 0; i < testThreadProducerThreads; ++i)
     {
@@ -147,17 +179,22 @@ template<class Q> void_t testQueue(const String& name)
       delete thread;
     }
     ASSERT(queue.size() == 0);
+    ASSERT(producerSum == consumerSum);
   }
-  timestamp_t duration = Time::ticks() - startTime;
-  Console::printf(_T("%lld ms, producerSum=%llu, consumerSum=%llu\n"), duration, (uint64_t)producerSum, (uint64_t)consumerSum);
+  timestamp_t microDuration = Time::microTicks() - microStartTime;
+  Console::printf(_T("%lld ms, maxPush: %lld microseconds, maxPop: %lld microseconds\n"), microDuration / 1000, maxPushDuration, maxPopDuration);
 }
 
 int_t main(int_t argc, char_t* argv[])
 {
-  testQueue<LockFreeQueueSlow1<int_t> >("LockFreeQueueSlow1");
-  testQueue<LockFreeQueue<int_t> >("LockFreeQueue");
-  testQueue<MutexLockQueue<int_t> >("MutexLockQueue");
-  testQueue<SpinLockQueue<int_t> >("SpinLockQueue");
+  for(int i = 0; i < 3; ++i)
+  {
+    Console::printf(_T("--- Run %d ---\n"), i);
+    testQueue<LockFreeQueueSlow1<int_t> >("LockFreeQueueSlow1");
+    testQueue<LockFreeQueue<int_t> >("LockFreeQueue");
+    testQueue<MutexLockQueue<int_t> >("MutexLockQueue");
+    testQueue<SpinLockQueue<int_t> >("SpinLockQueue");
+  }
 
   return 0;
 }
