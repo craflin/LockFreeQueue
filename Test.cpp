@@ -5,14 +5,17 @@
 #include <nstd/List.h>
 #include <nstd/Time.h>
 
+#include "LockFreeQueue.h"
 #include "LockFreeQueue2.h"
+#include "MutexLockQueue.h"
 
-//#include "NaiveQueue.h"
-//#define LockFreeQueue NaiveQueue
+//#define TestQueue LockFreeQueue
+//#define TestQueue LockFreeQueue2
+#define TestQueue MutexLockQueue
 
 uint_t producerThread(void_t* param)
 {
-  LockFreeQueue<int_t>* queue = (LockFreeQueue<int_t>*)param;
+  TestQueue<int_t>* queue = (TestQueue<int_t>*)param;
   for(int i = 0; i < 100000; ++i)
   {
     while(!queue->push(12))
@@ -23,7 +26,7 @@ uint_t producerThread(void_t* param)
 
 uint_t consumerThread(void_t* param)
 {
-  LockFreeQueue<int_t>* queue = (LockFreeQueue<int_t>*)param;
+  TestQueue<int_t>* queue = (TestQueue<int_t>*)param;
   int_t val;
   for(int i = 0; i < 100000; ++i)
   {
@@ -52,7 +55,7 @@ int_t main(int_t argc, char_t* argv[])
   ASSERT(uint64 == 1);
 
   {
-    LockFreeQueue<int_t> queue(10000);
+    TestQueue<int_t> queue(10000);
     int_t result;
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(42));
@@ -71,7 +74,7 @@ int_t main(int_t argc, char_t* argv[])
   //}
 
   {
-    LockFreeQueue<int_t> queue(2);
+    TestQueue<int_t> queue(2);
     int_t result;
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(42));
@@ -94,7 +97,7 @@ int_t main(int_t argc, char_t* argv[])
 
   timestamp_t startTime = Time::ticks();
   {
-    LockFreeQueue<int_t> queue(10000);
+    TestQueue<int_t> queue(10000);
     List<Thread*> threads;
     for(int_t i = 0; i < 60; ++i)
     {

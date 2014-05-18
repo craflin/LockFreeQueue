@@ -4,10 +4,10 @@
 #include <nstd/Mutex.h>
 #include <nstd/Memory.h>
 
-template <typename T> class NaiveQueue
+template <typename T> class MutexLockQueue
 {
 public:
-  explicit NaiveQueue(size_t capacity) : _capacity(capacity)
+  explicit MutexLockQueue(size_t capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
 
@@ -15,7 +15,7 @@ public:
     _tail = 0;
   }
 
-  ~NaiveQueue()
+  ~MutexLockQueue()
   {
     for(size_t i = _head; i != _tail; ++i)
       (&queue[i % _capacity].data)->~T();

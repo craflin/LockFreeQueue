@@ -4,10 +4,10 @@
 #include <nstd/Atomic.h>
 #include <nstd/Memory.h>
 
-template <typename T> class LockFreeQueue
+template <typename T> class LockFreeQueue2
 {
 public:
-  explicit LockFreeQueue(size_t capacity) : _capacity(capacity)
+  explicit LockFreeQueue2(size_t capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
     for(size_t i = 0; i < capacity; ++i)
@@ -20,7 +20,7 @@ public:
     _head = 0;
   }
 
-  ~LockFreeQueue()
+  ~LockFreeQueue2()
   {
     for(size_t i = _head; i != _tail; ++i)
       (&queue[i % _capacity].data)->~T();
