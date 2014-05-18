@@ -22,19 +22,20 @@ public:
 
   ~LockFreeQueue()
   {
-    for(size_t i = 0, head = _head; i < _capacity; ++i, ++head)
-    {
-      Node* node = &queue[head % _capacity];
-      if(node->head == head)
-        (&node->data)->~T();
-    }
+    for(size_t i = _head; i != _tail; ++i)
+      (&queue[i % _capacity].data)->~T();
 
     Memory::free(queue);
   }
   
   size_t capacity() const {return _capacity;}
   
-  size_t size() const {return _capacity - _freeNodes;}
+  size_t size() const
+  {
+    size_t head = _head;
+    // memory barrier?
+    return _tail - head;
+  }
   
   bool_t push(const T& data)
   {
