@@ -7,7 +7,7 @@
 template <typename T> class LockFreeQueueSlow1
 {
 public:
-  explicit LockFreeQueueSlow1(size_t capacity) : _capacity(capacity)
+  explicit LockFreeQueueSlow1(usize capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
     for(Node* node = queue, * end = queue + _capacity; node < end; ++node)
@@ -36,27 +36,27 @@ public:
     Memory::free(queue);
   }
   
-  size_t capacity() const {return _capacity;}
+  usize capacity() const {return _capacity;}
   
-  size_t size() const {return _capacity - _freeNodes;}
+  usize size() const {return _capacity - _freeNodes;}
   
-  bool_t push(const T& data)
+  bool push(const T& data)
   {
   begin:
-    size_t freeNodes = _freeNodes;
+    usize freeNodes = _freeNodes;
     if(freeNodes == 0)
       return false; // queue is full
     if(Atomic::compareAndSwap(_freeNodes, freeNodes, freeNodes - 1) != freeNodes)
       goto begin;
-    size_t writeIndex = Atomic::increment(_writeIndex);
+    usize writeIndex = Atomic::increment(_writeIndex);
     Node* node = &queue[writeIndex % _capacity];
     ASSERT(node->state == Node::free);
     new (&node->data)T(data);
     //Atomic::swap(node.state, Node::set);
     node->state = Node::set;
   commit:
-    size_t safeWriteIndex = _safeWriteIndex;
-    size_t nextSafeWriteIndex = safeWriteIndex + 1;
+    usize safeWriteIndex = _safeWriteIndex;
+    usize nextSafeWriteIndex = safeWriteIndex + 1;
   commitNext:
     node = &queue[nextSafeWriteIndex % _capacity];
     if(node->state == Node::set && Atomic::compareAndSwap(node->state, Node::set, Node::occupied) == Node::set)
@@ -75,15 +75,15 @@ public:
     return true;
   }
   
-  bool_t pop(T& result)
+  bool pop(T& result)
   {
   begin:
-    size_t occupiedNodes = _occupiedNodes;
+    usize occupiedNodes = _occupiedNodes;
     if(occupiedNodes == 0)
       return false; // queue is empty
     if(Atomic::compareAndSwap(_occupiedNodes, occupiedNodes, occupiedNodes - 1) != occupiedNodes)
       goto begin;
-    size_t readIndex = Atomic::increment(_readIndex);
+    usize readIndex = Atomic::increment(_readIndex);
     Node* node = &queue[readIndex % _capacity];
     ASSERT(node->state == Node::occupied);
     result = node->data;
@@ -91,8 +91,8 @@ public:
     //Atomic::swap(node.state, Node::unset);
     node->state = Node::unset;
   release:
-    size_t safeReadIndex = _safeReadIndex;
-    size_t nextSafeReadIndex = safeReadIndex + 1;
+    usize safeReadIndex = _safeReadIndex;
+    usize nextSafeReadIndex = safeReadIndex + 1;
   releaseNext:
     node = &queue[nextSafeReadIndex % _capacity];
     if(node->state == Node::unset && Atomic::compareAndSwap(node->state, Node::unset, Node::free) == Node::unset)
@@ -122,16 +122,16 @@ private:
       occupied,
       unset,
     };
-    volatile int_t state;
+    volatile int state;
   };
 
 private:
-  size_t _capacity;
+  usize _capacity;
   Node* queue;
-  volatile size_t _freeNodes;
-  volatile size_t _occupiedNodes;
-  volatile size_t _writeIndex;
-  volatile size_t _safeWriteIndex;
-  volatile size_t _readIndex;
-  volatile size_t _safeReadIndex;
+  volatile usize _freeNodes;
+  volatile usize _occupiedNodes;
+  volatile usize _writeIndex;
+  volatile usize _safeWriteIndex;
+  volatile usize _readIndex;
+  volatile usize _safeReadIndex;
 };

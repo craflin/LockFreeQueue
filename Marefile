@@ -32,7 +32,7 @@ targets = {
   }
   
   libnstd = cppStaticLibrary + {
-    folder = "Libraries"
+    folder = "Ext"
     includePaths = { "Ext/libnstd/include" }
     buildDir = "Build/$(configuration)/$(target)"
     root = { "Ext/libnstd/src", "Ext/libnstd/include/nstd" }

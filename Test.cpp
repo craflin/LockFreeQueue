@@ -10,7 +10,7 @@
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
 
-static const int testItems = 250000 * 64;
+static const int testItems = 250000 * 64 / 3;
 static const int testThreadConsumerThreads = 8;
 static const int testThreadProducerThreads = 8;
 static const int testItemsPerConsumerThread = testItems / testThreadConsumerThreads;
@@ -19,42 +19,45 @@ static const int testItemsPerProducerThread = testItems / testThreadProducerThre
 template<typename T> class IQueue
 {
 public:
-  virtual size_t size() const = 0;
-  virtual bool_t push(const T& data) = 0;
-  virtual bool_t pop(T& result) = 0;
+  virtual usize size() const = 0;
+  virtual bool push(const T& data) = 0;
+  virtual bool pop(T& result) = 0;
 };
 
 template<typename T, class Q> class TestQueue : public IQueue<T>
 {
 public:
-  TestQueue(size_t size) : queue(size) {}
-  size_t size() const {return queue.size();}
-  bool_t push(const T& data) {return queue.push(data);}
-  bool_t pop(T& result) {return queue.pop(result);}
+  TestQueue(usize size) : queue(size) {}
+  usize size() const {return queue.size();}
+  bool push(const T& data) {return queue.push(data);}
+  bool pop(T& result) {return queue.pop(result);}
 private:
   Q queue;
 };
 
 volatile size_t producerSum;
 volatile size_t consumerSum;
-volatile timestamp_t maxPushDuration;
-volatile timestamp_t maxPopDuration;
+volatile int64 maxPushDuration;
+volatile int64 maxPopDuration;
 
-uint_t producerThread(void_t* param)
+uint producerThread(void* param)
 {
-  IQueue<int_t>* queue = (IQueue<int_t>*)param;
-  for(int_t i = 0; i < testItemsPerProducerThread; ++i)
+  IQueue<int>* queue = (IQueue<int>*)param;
+  for(int i = 0; i < testItemsPerProducerThread; ++i)
   {
     for(;;)
     {
-      timestamp_t startTime = Time::microTicks();
+      int64 startTime = Time::microTicks();
       while(!queue->push(i))
-        Thread::yield();
       {
-        timestamp_t duration = Time::microTicks() - startTime;
+        Thread::yield();
+        startTime = Time::microTicks();
+      }
+      {
+        int64 duration = Time::microTicks() - startTime;
         for(;;)
         {
-          timestamp_t lmaxPushDuration = maxPushDuration;
+          int64 lmaxPushDuration = maxPushDuration;
           if(duration <= lmaxPushDuration || Atomic::compareAndSwap(maxPushDuration, lmaxPushDuration, duration) == lmaxPushDuration)
             break;
         }
@@ -66,22 +69,25 @@ uint_t producerThread(void_t* param)
   return 0;
 }
 
-uint_t consumerThread(void_t* param)
+uint consumerThread(void* param)
 {
-  IQueue<int_t>* queue = (IQueue<int_t>*)param;
-  int_t val;
-  for(int_t i = 0; i < testItemsPerConsumerThread; ++i)
+  IQueue<int>* queue = (IQueue<int>*)param;
+  int val;
+  for(int i = 0; i < testItemsPerConsumerThread; ++i)
   {
     for(;;)
     {
-      timestamp_t startTime = Time::microTicks();
+      int64 startTime = Time::microTicks();
       while(!queue->pop(val))
-        Thread::yield();
       {
-        timestamp_t duration = Time::microTicks() - startTime;
+        Thread::yield();
+        startTime = Time::microTicks();
+      }
+      {
+        int64 duration = Time::microTicks() - startTime;
         for(;;)
         {
-          timestamp_t lmaxPopDuration = maxPopDuration;
+          int64 lmaxPopDuration = maxPopDuration;
           if(duration <= lmaxPopDuration || Atomic::compareAndSwap(maxPopDuration, lmaxPopDuration, duration) == lmaxPopDuration)
             break;
         }
@@ -93,27 +99,27 @@ uint_t consumerThread(void_t* param)
   return 0;
 }
 
-template<class Q> void_t testQueue(const String& name)
+template<class Q> void testQueue(const String& name)
 {
-  Console::printf(_T("Testing %s... \n"), (const tchar_t*)name);
+  Console::printf(_T("Testing %s... \n"), (const tchar*)name);
 
-  volatile int32_t int32 = 0;
-  volatile uint32_t uint32 = 0;
-  ASSERT(Atomic::compareAndSwap(int32, 0, 1) == 0);
-  ASSERT(int32 == 1);
-  ASSERT(Atomic::compareAndSwap(uint32, 0, 1) == 0);
-  ASSERT(uint32 == 1);
+  volatile int32 int32_ = 0;
+  volatile uint32 uint32_ = 0;
+  ASSERT(Atomic::compareAndSwap(int32_, 0, 1) == 0);
+  ASSERT(int32_ == 1);
+  ASSERT(Atomic::compareAndSwap(uint32_, 0, 1) == 0);
+  ASSERT(uint32_ == 1);
 
-  volatile int64_t int64 = 0;
-  volatile uint64_t uint64 = 0;
-  ASSERT(Atomic::compareAndSwap(int64, 0, 1) == 0);
-  ASSERT(int64 == 1);
-  ASSERT(Atomic::compareAndSwap(uint64, 0, 1) == 0);
-  ASSERT(uint64 == 1);
+  volatile int64 int64_ = 0;
+  volatile uint64 uint64_ = 0;
+  ASSERT(Atomic::compareAndSwap(int64_, 0, 1) == 0);
+  ASSERT(int64_ == 1);
+  ASSERT(Atomic::compareAndSwap(uint64_, 0, 1) == 0);
+  ASSERT(uint64_ == 1);
 
   {
-    TestQueue<int_t, Q> queue(10000);
-    int_t result;
+    TestQueue<int, Q> queue(10000);
+    int result;
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(42));
     ASSERT(queue.pop(result));
@@ -122,8 +128,8 @@ template<class Q> void_t testQueue(const String& name)
   }
 
   //{
-  //  TestQueue<int_t, Q> queue(0);
-  //  int_t result;
+  //  TestQueue<int, Q> queue(0);
+  //  int result;
   //  ASSERT(!queue.pop(result));
   //  ASSERT(!queue.push(42));
   //  ASSERT(!queue.pop(result));
@@ -131,8 +137,8 @@ template<class Q> void_t testQueue(const String& name)
   //}
 
   {
-    TestQueue<int_t, Q> queue(2);
-    int_t result;
+    TestQueue<int, Q> queue(2);
+    int result;
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(42));
     ASSERT(queue.push(43));
@@ -156,17 +162,17 @@ template<class Q> void_t testQueue(const String& name)
   maxPushDuration = 0;
   maxPopDuration = 0;
 
-  timestamp_t microStartTime = Time::microTicks();
+  int64 microStartTime = Time::microTicks();
   {
-    TestQueue<int_t, Q> queue(100);
+    TestQueue<int, Q> queue(100);
     List<Thread*> threads;
-    for(int_t i = 0; i < testThreadProducerThreads; ++i)
+    for(int i = 0; i < testThreadProducerThreads; ++i)
     {
       Thread* thread = new Thread;
       thread->start(producerThread, &queue);
       threads.append(thread);
     }
-    for(int_t i = 0; i < testThreadConsumerThreads; ++i)
+    for(int i = 0; i < testThreadConsumerThreads; ++i)
     {
       Thread* thread = new Thread;
       thread->start(consumerThread, &queue);
@@ -181,19 +187,19 @@ template<class Q> void_t testQueue(const String& name)
     ASSERT(queue.size() == 0);
     ASSERT(producerSum == consumerSum);
   }
-  timestamp_t microDuration = Time::microTicks() - microStartTime;
+  int64 microDuration = Time::microTicks() - microStartTime;
   Console::printf(_T("%lld ms, maxPush: %lld microseconds, maxPop: %lld microseconds\n"), microDuration / 1000, maxPushDuration, maxPopDuration);
 }
 
-int_t main(int_t argc, char_t* argv[])
+int main(int argc, char* argv[])
 {
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
-    testQueue<LockFreeQueueSlow1<int_t> >("LockFreeQueueSlow1");
-    testQueue<LockFreeQueue<int_t> >("LockFreeQueue");
-    testQueue<MutexLockQueue<int_t> >("MutexLockQueue");
-    testQueue<SpinLockQueue<int_t> >("SpinLockQueue");
+    testQueue<LockFreeQueueSlow1<int> >("LockFreeQueueSlow1");
+    testQueue<LockFreeQueue<int> >("LockFreeQueue");
+    testQueue<MutexLockQueue<int> >("MutexLockQueue");
+    testQueue<SpinLockQueue<int> >("SpinLockQueue");
   }
 
   return 0;

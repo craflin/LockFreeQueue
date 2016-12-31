@@ -7,10 +7,10 @@
 template <typename T> class LockFreeQueue
 {
 public:
-  explicit LockFreeQueue(size_t capacity) : _capacity(capacity)
+  explicit LockFreeQueue(usize capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
-    for(size_t i = 0; i < capacity; ++i)
+    for(usize i = 0; i < capacity; ++i)
     {
       queue[i].tail = i;
       queue[i].head = i - 1;
@@ -22,28 +22,28 @@ public:
 
   ~LockFreeQueue()
   {
-    for(size_t i = _head; i != _tail; ++i)
+    for(usize i = _head; i != _tail; ++i)
       (&queue[i % _capacity].data)->~T();
 
     Memory::free(queue);
   }
   
-  size_t capacity() const {return _capacity;}
+  usize capacity() const {return _capacity;}
   
-  size_t size() const
+  usize size() const
   {
-    size_t head = _head;
+    usize head = _head;
     // memory barrier?
     return _tail - head;
   }
   
-  bool_t push(const T& data)
+  bool push(const T& data)
   {
   begin:
-    size_t tail = _tail;
+    usize tail = _tail;
     Node* node = &queue[tail % _capacity];
-    size_t newTail = tail + 1;
-    size_t nodeTail = node->tail;
+    usize newTail = tail + 1;
+    usize nodeTail = node->tail;
     if(nodeTail == tail)
     {
       nodeTail = Atomic::compareAndSwap(node->tail, tail, newTail);
@@ -65,13 +65,13 @@ public:
       return false;
   }
 
-  bool_t pop(T& result)
+  bool pop(T& result)
   {
   begin:
-    size_t head = _head;
+    usize head = _head;
     Node* node = &queue[head % _capacity];
-    size_t newHead = head + 1;
-    size_t nodeHead = node->head;
+    usize newHead = head + 1;
+    usize nodeHead = node->head;
     if(nodeHead == head)
     {
       nodeHead = Atomic::compareAndSwap(node->head, head, newHead);
@@ -98,13 +98,13 @@ private:
   struct Node
   {
     T data;
-    volatile size_t head;
-    volatile size_t tail;
+    volatile usize head;
+    volatile usize tail;
   };
 
 private:
-  size_t _capacity;
+  usize _capacity;
   Node* queue;
-  volatile size_t _head;
-  volatile size_t _tail;
+  volatile usize _head;
+  volatile usize _tail;
 };

@@ -7,7 +7,7 @@
 template <typename T> class SpinLockQueue
 {
 public:
-  explicit SpinLockQueue(size_t capacity) : _capacity(capacity)
+  explicit SpinLockQueue(usize capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
 
@@ -18,16 +18,16 @@ public:
 
   ~SpinLockQueue()
   {
-    for(size_t i = _head; i != _tail; ++i)
+    for(usize i = _head; i != _tail; ++i)
       (&queue[i % _capacity].data)->~T();
     Memory::free(queue);
   }
   
-  size_t capacity() const {return _capacity;}
+  usize capacity() const {return _capacity;}
   
-  size_t size() const {return _tail - _head;}
+  usize size() const {return _tail - _head;}
   
-  bool_t push(const T& data)
+  bool push(const T& data)
   {
     while(Atomic::testAndSet(lock) != 0);
     if(_tail - _head == _capacity)
@@ -42,7 +42,7 @@ public:
     return true;
   }
   
-  bool_t pop(T& result)
+  bool pop(T& result)
   {
     while(Atomic::testAndSet(lock) != 0);
     if(_head == _tail)
@@ -65,9 +65,9 @@ private:
   };
 
 private:
-  size_t _capacity;
+  usize _capacity;
   Node* queue;
-  size_t _head;
-  size_t _tail;
-  volatile int32_t lock;
+  usize _head;
+  usize _tail;
+  volatile int32 lock;
 };
