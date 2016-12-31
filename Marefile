@@ -29,6 +29,7 @@ targets = {
     if platform == "Linux" {
       libs += { "pthread", "rt" }
     }
+    defines -= "NDEBUG"
   }
   
   libnstd = cppStaticLibrary + {
