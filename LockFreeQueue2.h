@@ -11,7 +11,7 @@ public:
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
     for(usize i = 0; i < capacity; ++i)
-      queue[i].ready = false;
+      queue[i].state = 0;
 
     _tail = 0;
     _head = 0;
@@ -40,17 +40,24 @@ public:
     {
       usize tail = _tail;
       Node* node = &queue[tail % _capacity];
-      if(node->ready)
+      switch(Atomic::compareAndSwap(node->state, 0, 2))
+      {
+      case 2:
+        continue;
+      case 0:
+        break;
+      default:
         return false;
+      }
       if(Atomic::compareAndSwap(_tail, tail, tail + 1) == tail)
       {
         new (&node->data)T(data);
         // memory barrier?
-        node->ready = true;
+        node->state = 1;
         return true;
       }
       else
-        return false;
+        node->state = 0;
     }
   }
 
@@ -60,18 +67,25 @@ public:
     {
       usize head = _head;
       Node* node = &queue[head % _capacity];
-      if(!node->ready)
+      switch(Atomic::compareAndSwap(node->state, 1, 3))
+      {
+      case 3:
+        continue;
+      case 1:
+        break;
+      default:
         return false;
+      }
       if(Atomic::compareAndSwap(_head, head, head + 1) == head)
       {
         result = node->data;
         (&node->data)->~T();
         // memory barrier?
-        node->ready = false;
+        node->state = 0;
         return true;
       }
       else
-        return false;
+        node->state = 1;
     }
   }
 
@@ -79,12 +93,12 @@ private:
   struct Node
   {
     T data;
-    bool ready;
+    volatile int state;
   };
 
 private:
   usize _capacity;
   Node* queue;
-  usize _tail;
-  usize _head;
+  volatile usize _tail;
+  volatile usize _head;
 };
