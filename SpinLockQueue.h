@@ -25,7 +25,14 @@ public:
   
   usize capacity() const {return _capacity;}
   
-  usize size() const {return _tail - _head;}
+  usize size() const
+  {
+    usize result;
+    while(Atomic::testAndSet(lock) != 0);
+    result = _tail - _head;
+    Atomic::swap(lock, 0);
+    return result;
+  }
   
   bool push(const T& data)
   {
@@ -37,8 +44,7 @@ public:
     }
     Node& node = queue[(_tail++) % _capacity];
     new (&node.data)T(data);
-    // memory barrier?
-    lock = 0;
+    Atomic::swap(lock, 0);
     return true;
   }
   
@@ -53,8 +59,7 @@ public:
     Node& node = queue[(_head++) % _capacity];
     result = node.data;
     (&node.data)->~T();
-    // memory barrier?
-    lock = 0;
+    Atomic::swap(lock, 0);
     return true;
   }
 
@@ -69,5 +74,5 @@ private:
   Node* queue;
   usize _head;
   usize _tail;
-  volatile int32 lock;
+  mutable volatile int32 lock;
 };

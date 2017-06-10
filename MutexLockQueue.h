@@ -24,7 +24,14 @@ public:
   
   usize capacity() const {return _capacity;}
   
-  usize size() const {return _tail - _head;}
+  usize size() const
+  {
+    usize result;
+    mutex.lock();
+    result = _tail - _head;
+    mutex.unlock();
+    return result;
+  }
   
   bool push(const T& data)
   {
@@ -66,5 +73,5 @@ private:
   Node* queue;
   usize _head;
   usize _tail;
-  Mutex mutex;
+  mutable Mutex mutex;
 };

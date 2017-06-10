@@ -30,7 +30,7 @@ public:
   usize size() const
   {
     usize head = _head;
-    // memory barrier?
+    Atomic::memoryBarrier();
     return _tail - head;
   }
   
@@ -52,8 +52,7 @@ public:
       if(Atomic::compareAndSwap(_tail, tail, tail + 1) == tail)
       {
         new (&node->data)T(data);
-        // memory barrier?
-        node->state = 1;
+        Atomic::swap(node->state, 1);
         return true;
       }
       else
@@ -80,8 +79,7 @@ public:
       {
         result = node->data;
         (&node->data)->~T();
-        // memory barrier?
-        node->state = 0;
+        Atomic::swap(node->state, 0);
         return true;
       }
       else
