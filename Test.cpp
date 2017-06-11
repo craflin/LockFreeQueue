@@ -7,6 +7,7 @@
 
 #include "LockFreeQueue.h"
 #include "LockFreeQueue2.h"
+#include "LockFreeQueue3.h"
 #include "LockFreeQueueSlow1.h"
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
@@ -197,9 +198,10 @@ int main(int argc, char* argv[])
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
-    testQueue<LockFreeQueueSlow1<int> >("LockFreeQueueSlow1");
-    testQueue<LockFreeQueue<int> >("LockFreeQueue");
+    testQueue<LockFreeQueue3<int> >("LockFreeQueue3");
     testQueue<LockFreeQueue2<int> >("LockFreeQueue2");
+    testQueue<LockFreeQueue<int> >("LockFreeQueue");
+    testQueue<LockFreeQueueSlow1<int> >("LockFreeQueueSlow1");
     testQueue<MutexLockQueue<int> >("MutexLockQueue");
     testQueue<SpinLockQueue<int> >("SpinLockQueue");
   }
