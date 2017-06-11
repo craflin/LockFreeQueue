@@ -7,9 +7,18 @@
 template <typename T> class MutexLockQueue
 {
 public:
-  explicit MutexLockQueue(usize capacity) : _capacity(capacity)
+  explicit MutexLockQueue(usize capacity)
   {
-    queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
+    _capacityMask = capacity - 1;
+    _capacityMask |= _capacityMask >> 1;
+    _capacityMask |= _capacityMask >> 2;
+    _capacityMask |= _capacityMask >> 4;
+    _capacityMask |= _capacityMask >> 8;
+    _capacityMask |= _capacityMask >> 16;
+    _capacityMask |= _capacityMask >> 32;
+    _capacity = _capacityMask + 1;
+
+    _queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
 
     _head = 0;
     _tail = 0;
@@ -18,8 +27,8 @@ public:
   ~MutexLockQueue()
   {
     for(usize i = _head; i != _tail; ++i)
-      (&queue[i % _capacity].data)->~T();
-    Memory::free(queue);
+      (&_queue[i & _capacityMask].data)->~T();
+    Memory::free(_queue);
   }
   
   usize capacity() const {return _capacity;}
@@ -27,38 +36,38 @@ public:
   usize size() const
   {
     usize result;
-    mutex.lock();
+    _mutex.lock();
     result = _tail - _head;
-    mutex.unlock();
+    _mutex.unlock();
     return result;
   }
   
   bool push(const T& data)
   {
-    mutex.lock();
+    _mutex.lock();
     if(_tail - _head == _capacity)
     {
-      mutex.unlock();
+      _mutex.unlock();
       return false; // queue is full
     }
-    Node& node = queue[(_tail++) % _capacity];
+    Node& node = _queue[(_tail++) & _capacityMask];
     new (&node.data)T(data);
-    mutex.unlock();
+    _mutex.unlock();
     return true;
   }
   
   bool pop(T& result)
   {
-    mutex.lock();
+    _mutex.lock();
     if(_head == _tail)
     {
-      mutex.unlock();
+      _mutex.unlock();
       return false; // queue is empty
     }
-    Node& node = queue[(_head++) % _capacity];
+    Node& node = _queue[(_head++) & _capacityMask];
     result = node.data;
     (&node.data)->~T();
-    mutex.unlock();
+    _mutex.unlock();
     return true;
   }
 
@@ -70,8 +79,9 @@ private:
 
 private:
   usize _capacity;
-  Node* queue;
+  usize _capacityMask;
+  Node* _queue;
   usize _head;
   usize _tail;
-  mutable Mutex mutex;
+  mutable Mutex _mutex;
 };

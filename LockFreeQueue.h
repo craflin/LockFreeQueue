@@ -7,13 +7,22 @@
 template <typename T> class LockFreeQueue
 {
 public:
-  explicit LockFreeQueue(usize capacity) : _capacity(capacity)
+  explicit LockFreeQueue(usize capacity)
   {
-    queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
+    _capacityMask = capacity - 1;
+    _capacityMask |= _capacityMask >> 1;
+    _capacityMask |= _capacityMask >> 2;
+    _capacityMask |= _capacityMask >> 4;
+    _capacityMask |= _capacityMask >> 8;
+    _capacityMask |= _capacityMask >> 16;
+    _capacityMask |= _capacityMask >> 32;
+    _capacity = _capacityMask + 1;
+
+    _queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
     for(usize i = 0; i < _capacity; ++i)
     {
-      queue[i].tail = i;
-      queue[i].head = -1;
+      _queue[i].tail = i;
+      _queue[i].head = -1;
     }
 
     _tail = 0;
@@ -23,9 +32,9 @@ public:
   ~LockFreeQueue()
   {
     for(usize i = _head; i != _tail; ++i)
-      (&queue[i % _capacity].data)->~T();
+      (&_queue[i % _capacity].data)->~T();
 
-    Memory::free(queue);
+    Memory::free(_queue);
   }
   
   usize capacity() const {return _capacity;}
@@ -42,7 +51,7 @@ public:
     for(;;)
     {
       usize tail = _tail;
-      Node* node = &queue[tail % _capacity];
+      Node* node = &_queue[tail & _capacityMask];
       if(node->tail != tail)
         return false;
       if(Atomic::compareAndSwap(_tail, tail, tail + 1) == tail)
@@ -59,7 +68,7 @@ public:
     for(;;)
     {
       usize head = _head;
-      Node* node = &queue[head % _capacity];
+      Node* node = &_queue[head & _capacityMask];
       if(node->head != head)
         return false;
       if(Atomic::compareAndSwap(_head, head, head + 1) == head)
@@ -82,7 +91,8 @@ private:
 
 private:
   usize _capacity;
-  Node* queue;
+  usize _capacityMask;
+  Node* _queue;
   volatile usize _tail;
   volatile usize _head;
 };

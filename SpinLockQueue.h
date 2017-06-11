@@ -7,11 +7,20 @@
 template <typename T> class SpinLockQueue
 {
 public:
-  explicit SpinLockQueue(usize capacity) : _capacity(capacity)
+  explicit SpinLockQueue(usize capacity)
   {
-    queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
+    _capacityMask = capacity - 1;
+    _capacityMask |= _capacityMask >> 1;
+    _capacityMask |= _capacityMask >> 2;
+    _capacityMask |= _capacityMask >> 4;
+    _capacityMask |= _capacityMask >> 8;
+    _capacityMask |= _capacityMask >> 16;
+    _capacityMask |= _capacityMask >> 32;
+    _capacity = _capacityMask + 1;
 
-    lock = 0;
+    _queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
+
+    _lock = 0;
     _head = 0;
     _tail = 0;
   }
@@ -19,8 +28,8 @@ public:
   ~SpinLockQueue()
   {
     for(usize i = _head; i != _tail; ++i)
-      (&queue[i % _capacity].data)->~T();
-    Memory::free(queue);
+      (&_queue[i & _capacityMask].data)->~T();
+    Memory::free(_queue);
   }
   
   usize capacity() const {return _capacity;}
@@ -28,38 +37,38 @@ public:
   usize size() const
   {
     usize result;
-    while(Atomic::testAndSet(lock) != 0);
+    while(Atomic::testAndSet(_lock) != 0);
     result = _tail - _head;
-    Atomic::swap(lock, 0);
+    Atomic::swap(_lock, 0);
     return result;
   }
   
   bool push(const T& data)
   {
-    while(Atomic::testAndSet(lock) != 0);
+    while(Atomic::testAndSet(_lock) != 0);
     if(_tail - _head == _capacity)
     {
-      lock = 0;
+      _lock = 0;
       return false; // queue is full
     }
-    Node& node = queue[(_tail++) % _capacity];
+    Node& node = _queue[(_tail++) & _capacityMask];
     new (&node.data)T(data);
-    Atomic::swap(lock, 0);
+    Atomic::swap(_lock, 0);
     return true;
   }
   
   bool pop(T& result)
   {
-    while(Atomic::testAndSet(lock) != 0);
+    while(Atomic::testAndSet(_lock) != 0);
     if(_head == _tail)
     {
-      lock = 0;
+      _lock = 0;
       return false; // queue is empty
     }
-    Node& node = queue[(_head++) % _capacity];
+    Node& node = _queue[(_head++) & _capacityMask];
     result = node.data;
     (&node.data)->~T();
-    Atomic::swap(lock, 0);
+    Atomic::swap(_lock, 0);
     return true;
   }
 
@@ -71,8 +80,9 @@ private:
 
 private:
   usize _capacity;
-  Node* queue;
+  usize _capacityMask;
+  Node* _queue;
   usize _head;
   usize _tail;
-  mutable volatile int32 lock;
+  mutable volatile int32 _lock;
 };

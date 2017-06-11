@@ -7,13 +7,22 @@
 template <typename T> class LockFreeQueueSlow2
 {
 public:
-  explicit LockFreeQueueSlow2(usize capacity) : _capacity(capacity)
+  explicit LockFreeQueueSlow2(usize capacity)
   {
-    queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
-    for(usize i = 0; i < capacity; ++i)
+    _capacityMask = capacity - 1;
+    _capacityMask |= _capacityMask >> 1;
+    _capacityMask |= _capacityMask >> 2;
+    _capacityMask |= _capacityMask >> 4;
+    _capacityMask |= _capacityMask >> 8;
+    _capacityMask |= _capacityMask >> 16;
+    _capacityMask |= _capacityMask >> 32;
+    _capacity = _capacityMask + 1;
+
+    _queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
+    for(usize i = 0; i < _capacity; ++i)
     {
-      queue[i].tail = i;
-      queue[i].head = i - 1;
+      _queue[i].tail = i;
+      _queue[i].head = i - 1;
     }
 
     _tail = 0;
@@ -23,9 +32,9 @@ public:
   ~LockFreeQueueSlow2()
   {
     for(usize i = _head; i != _tail; ++i)
-      (&queue[i % _capacity].data)->~T();
+      (&_queue[i & _capacityMask].data)->~T();
 
-    Memory::free(queue);
+    Memory::free(_queue);
   }
   
   usize capacity() const {return _capacity;}
@@ -41,7 +50,7 @@ public:
   {
   begin:
     usize tail = _tail;
-    Node* node = &queue[tail % _capacity];
+    Node* node = &_queue[tail & _capacityMask];
     usize newTail = tail + 1;
     usize nodeTail = node->tail;
     if(nodeTail == tail)
@@ -68,7 +77,7 @@ public:
   {
   begin:
     usize head = _head;
-    Node* node = &queue[head % _capacity];
+    Node* node = &_queue[head & _capacityMask];
     usize newHead = head + 1;
     usize nodeHead = node->head;
     if(nodeHead == head)
@@ -102,7 +111,8 @@ private:
 
 private:
   usize _capacity;
-  Node* queue;
+  usize _capacityMask;
+  Node* _queue;
   volatile usize _head;
   volatile usize _tail;
 };

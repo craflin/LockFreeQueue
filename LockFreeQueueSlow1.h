@@ -7,13 +7,22 @@
 template <typename T> class LockFreeQueueSlow1
 {
 public:
-  explicit LockFreeQueueSlow1(usize capacity) : _capacity(capacity)
+  explicit LockFreeQueueSlow1(usize capacity)
   {
-    queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
-    for(Node* node = queue, * end = queue + _capacity; node < end; ++node)
+    _capacityMask = capacity - 1;
+    _capacityMask |= _capacityMask >> 1;
+    _capacityMask |= _capacityMask >> 2;
+    _capacityMask |= _capacityMask >> 4;
+    _capacityMask |= _capacityMask >> 8;
+    _capacityMask |= _capacityMask >> 16;
+    _capacityMask |= _capacityMask >> 32;
+    _capacity = _capacityMask + 1;
+
+    _queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
+    for(Node* node = _queue, * end = _queue + _capacity; node < end; ++node)
       node->state = Node::free;
 
-    _freeNodes = capacity;
+    _freeNodes = _capacity;
     _occupiedNodes = 0;
     _writeIndex = -1;
     _safeWriteIndex = -1;
@@ -23,7 +32,7 @@ public:
 
   ~LockFreeQueueSlow1()
   {
-    for(Node* node = queue, * end = queue + _capacity; node < end; ++node)
+    for(Node* node = _queue, * end = _queue + _capacity; node < end; ++node)
       switch(node->state)
       {
       case Node::set:
@@ -33,7 +42,7 @@ public:
       default:
         break;
       }
-    Memory::free(queue);
+    Memory::free(_queue);
   }
   
   usize capacity() const {return _capacity;}
@@ -49,7 +58,7 @@ public:
     if(Atomic::compareAndSwap(_freeNodes, freeNodes, freeNodes - 1) != freeNodes)
       goto begin;
     usize writeIndex = Atomic::increment(_writeIndex);
-    Node* node = &queue[writeIndex % _capacity];
+    Node* node = &_queue[writeIndex & _capacityMask];
     ASSERT(node->state == Node::free);
     new (&node->data)T(data);
     Atomic::swap(node->state, Node::set);
@@ -57,7 +66,7 @@ public:
     usize safeWriteIndex = _safeWriteIndex;
     usize nextSafeWriteIndex = safeWriteIndex + 1;
   commitNext:
-    node = &queue[nextSafeWriteIndex % _capacity];
+    node = &_queue[nextSafeWriteIndex & _capacityMask];
     if(node->state == Node::set && Atomic::compareAndSwap(node->state, Node::set, Node::occupied) == Node::set)
     {
       if(Atomic::compareAndSwap(_safeWriteIndex, safeWriteIndex, nextSafeWriteIndex) == safeWriteIndex)
@@ -83,7 +92,7 @@ public:
     if(Atomic::compareAndSwap(_occupiedNodes, occupiedNodes, occupiedNodes - 1) != occupiedNodes)
       goto begin;
     usize readIndex = Atomic::increment(_readIndex);
-    Node* node = &queue[readIndex % _capacity];
+    Node* node = &_queue[readIndex & _capacityMask];
     ASSERT(node->state == Node::occupied);
     result = node->data;
     (&node->data)->~T();
@@ -92,7 +101,7 @@ public:
     usize safeReadIndex = _safeReadIndex;
     usize nextSafeReadIndex = safeReadIndex + 1;
   releaseNext:
-    node = &queue[nextSafeReadIndex % _capacity];
+    node = &_queue[nextSafeReadIndex & _capacityMask];
     if(node->state == Node::unset && Atomic::compareAndSwap(node->state, Node::unset, Node::free) == Node::unset)
     {
       if(Atomic::compareAndSwap(_safeReadIndex, safeReadIndex, nextSafeReadIndex) == safeReadIndex)
@@ -125,7 +134,8 @@ private:
 
 private:
   usize _capacity;
-  Node* queue;
+  usize _capacityMask;
+  Node* _queue;
   volatile usize _freeNodes;
   volatile usize _occupiedNodes;
   volatile usize _writeIndex;
