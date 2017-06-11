@@ -4,23 +4,20 @@
 #include <nstd/Atomic.h>
 #include <nstd/Memory.h>
 
-template <typename T> class LockFreeQueue3
+template <typename T> class LockFreeQueueSlow3
 {
 public:
-  explicit LockFreeQueue3(usize capacity) : _capacity(capacity)
+  explicit LockFreeQueueSlow3(usize capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
-    for(usize i = 0; i < _capacity; ++i)
-    {
-      queue[i].tail = i;
-      queue[i].head = -1;
-    }
+    for(usize i = 0; i < capacity; ++i)
+      queue[i].state = 0;
 
     _tail = 0;
     _head = 0;
   }
 
-  ~LockFreeQueue3()
+  ~LockFreeQueueSlow3()
   {
     for(usize i = _head; i != _tail; ++i)
       (&queue[i % _capacity].data)->~T();
@@ -43,14 +40,23 @@ public:
     {
       usize tail = _tail;
       Node* node = &queue[tail % _capacity];
-      if(node->tail != tail)
+      switch(Atomic::compareAndSwap(node->state, 0, 2))
+      {
+      case 2:
+        continue;
+      case 0:
+        break;
+      default:
         return false;
+      }
       if(Atomic::compareAndSwap(_tail, tail, tail + 1) == tail)
       {
         new (&node->data)T(data);
-        Atomic::swap(node->head, tail);
+        Atomic::swap(node->state, 1);
         return true;
       }
+      else
+        node->state = 0;
     }
   }
 
@@ -60,15 +66,24 @@ public:
     {
       usize head = _head;
       Node* node = &queue[head % _capacity];
-      if(node->head != head)
+      switch(Atomic::compareAndSwap(node->state, 1, 3))
+      {
+      case 3:
+        continue;
+      case 1:
+        break;
+      default:
         return false;
+      }
       if(Atomic::compareAndSwap(_head, head, head + 1) == head)
       {
         result = node->data;
         (&node->data)->~T();
-        Atomic::swap(node->tail, head + _capacity);
+        Atomic::swap(node->state, 0);
         return true;
       }
+      else
+        node->state = 1;
     }
   }
 
@@ -76,8 +91,7 @@ private:
   struct Node
   {
     T data;
-    volatile usize tail;
-    volatile usize head;
+    volatile int state;
   };
 
 private:

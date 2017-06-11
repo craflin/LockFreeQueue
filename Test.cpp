@@ -6,9 +6,9 @@
 #include <nstd/Time.h>
 
 #include "LockFreeQueue.h"
-#include "LockFreeQueue2.h"
-#include "LockFreeQueue3.h"
 #include "LockFreeQueueSlow1.h"
+#include "LockFreeQueueSlow2.h"
+#include "LockFreeQueueSlow3.h"
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
 
@@ -198,10 +198,10 @@ int main(int argc, char* argv[])
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
-    testQueue<LockFreeQueue3<int> >("LockFreeQueue3");
-    testQueue<LockFreeQueue2<int> >("LockFreeQueue2");
     testQueue<LockFreeQueue<int> >("LockFreeQueue");
     testQueue<LockFreeQueueSlow1<int> >("LockFreeQueueSlow1");
+    testQueue<LockFreeQueueSlow2<int> >("LockFreeQueueSlow2");
+    testQueue<LockFreeQueueSlow3<int> >("LockFreeQueueSlow3");
     testQueue<MutexLockQueue<int> >("MutexLockQueue");
     testQueue<SpinLockQueue<int> >("SpinLockQueue");
   }

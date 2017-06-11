@@ -10,10 +10,10 @@ public:
   explicit LockFreeQueue(usize capacity) : _capacity(capacity)
   {
     queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
-    for(usize i = 0; i < capacity; ++i)
+    for(usize i = 0; i < _capacity; ++i)
     {
       queue[i].tail = i;
-      queue[i].head = i - 1;
+      queue[i].head = -1;
     }
 
     _tail = 0;
@@ -39,70 +39,50 @@ public:
   
   bool push(const T& data)
   {
-  begin:
-    usize tail = _tail;
-    Node* node = &queue[tail % _capacity];
-    usize newTail = tail + 1;
-    usize nodeTail = node->tail;
-    if(nodeTail == tail)
+    for(;;)
     {
-      nodeTail = Atomic::compareAndSwap(node->tail, tail, newTail);
-      if(nodeTail == tail)
+      usize tail = _tail;
+      Node* node = &queue[tail % _capacity];
+      if(node->tail != tail)
+        return false;
+      if(Atomic::compareAndSwap(_tail, tail, tail + 1) == tail)
       {
-        Atomic::compareAndSwap(_tail, tail, newTail);
         new (&node->data)T(data);
         Atomic::swap(node->head, tail);
         return true;
       }
     }
-    if(nodeTail == newTail)
-    {
-      Atomic::compareAndSwap(_tail, tail, newTail);
-      goto begin;
-    }
-    else
-      return false;
   }
 
   bool pop(T& result)
   {
-  begin:
-    usize head = _head;
-    Node* node = &queue[head % _capacity];
-    usize newHead = head + 1;
-    usize nodeHead = node->head;
-    if(nodeHead == head)
+    for(;;)
     {
-      nodeHead = Atomic::compareAndSwap(node->head, head, newHead);
-      if(nodeHead == head)
+      usize head = _head;
+      Node* node = &queue[head % _capacity];
+      if(node->head != head)
+        return false;
+      if(Atomic::compareAndSwap(_head, head, head + 1) == head)
       {
-        Atomic::compareAndSwap(_head, head, newHead);
         result = node->data;
         (&node->data)->~T();
         Atomic::swap(node->tail, head + _capacity);
         return true;
       }
     }
-    if(nodeHead == newHead)
-    {
-      Atomic::compareAndSwap(_head, head, newHead);
-      goto begin;
-    }
-    else
-      return false;
   }
 
 private:
   struct Node
   {
     T data;
-    volatile usize head;
     volatile usize tail;
+    volatile usize head;
   };
 
 private:
   usize _capacity;
   Node* queue;
-  volatile usize _head;
   volatile usize _tail;
+  volatile usize _head;
 };
