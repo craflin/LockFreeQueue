@@ -13,5 +13,5 @@ Here I am testing some multi-producer multi-consumer ring buffer FIFO queue impl
 
 #### References
 
-[John D. Valois, 1994] - Implementing Lock-Free Queues
-[Dmitry Vyukov, 2011] - Bounded MPMC queue
+[John D. Valois, 1994] - Implementing Lock-Free Queues<br/>
+[Dmitry Vyukov, 2011] - [Bounded MPMC queue](http://www.1024cores.net/home/lock-free-algorithms/queues/bounded-mpmc-queue)
