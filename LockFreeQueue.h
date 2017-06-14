@@ -93,6 +93,9 @@ private:
   usize _capacity;
   usize _capacityMask;
   Node* _queue;
+  char cacheLinePad1[64];
   volatile usize _tail;
+  char cacheLinePad2[64];
   volatile usize _head;
+  char cacheLinePad3[64];
 };
