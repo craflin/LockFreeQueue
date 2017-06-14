@@ -55,7 +55,7 @@ public:
 
   usize size() const
   {
-    usize head = dequeue_pos_.load(std::memory_order_relaxed);;
+    usize head = dequeue_pos_.load(std::memory_order_acquire);;
     return enqueue_pos_.load(std::memory_order_relaxed) - head;
   }
 
