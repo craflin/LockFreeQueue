@@ -11,8 +11,9 @@
 #include "LockFreeQueueSlow3.h"
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
+#include "mpmc_bounded_queue.h"
 
-static const int testItems = 250000 * 64 / 3;
+static const int testItems = 250000 * 64 / 3 * 10;
 static const int testThreadConsumerThreads = 8;
 static const int testThreadProducerThreads = 8;
 static const int testItemsPerConsumerThread = testItems / testThreadConsumerThreads;
@@ -198,6 +199,7 @@ int main(int argc, char* argv[])
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
+    testQueue<mpmc_bounded_queue<int> >("mpmc_bounded_queue");
     testQueue<LockFreeQueue<int> >("LockFreeQueue");
     testQueue<LockFreeQueueSlow1<int> >("LockFreeQueueSlow1");
     testQueue<LockFreeQueueSlow2<int> >("LockFreeQueueSlow2");

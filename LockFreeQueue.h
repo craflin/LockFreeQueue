@@ -48,37 +48,37 @@ public:
   
   bool push(const T& data)
   {
-    for(;;)
+    Node* node;
+    usize next, tail = _tail;
+    for(;; tail = next)
     {
-      usize tail = _tail;
-      Node* node = &_queue[tail & _capacityMask];
+      node = &_queue[tail & _capacityMask];
       if(node->tail != tail)
         return false;
-      if(Atomic::compareAndSwap(_tail, tail, tail + 1) == tail)
-      {
-        new (&node->data)T(data);
-        Atomic::swap(node->head, tail);
-        return true;
-      }
+      if((next = Atomic::compareAndSwap(_tail, tail, tail + 1)) == tail)
+        break;
     }
+    new (&node->data)T(data);
+    Atomic::swap(node->head, tail);
+    return true;
   }
 
   bool pop(T& result)
   {
-    for(;;)
+    Node* node;
+    usize next, head = _head;
+    for(;; head = next)
     {
-      usize head = _head;
-      Node* node = &_queue[head & _capacityMask];
+      node = &_queue[head & _capacityMask];
       if(node->head != head)
         return false;
-      if(Atomic::compareAndSwap(_head, head, head + 1) == head)
-      {
-        result = node->data;
-        (&node->data)->~T();
-        Atomic::swap(node->tail, head + _capacity);
-        return true;
-      }
+      if((next = Atomic::compareAndSwap(_head, head, head + 1)) == head)
+        break;
     }
+    result = node->data;
+    (&node->data)->~T();
+    Atomic::swap(node->tail, head + _capacity);
+    return true;
   }
 
 private:
