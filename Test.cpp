@@ -5,6 +5,7 @@
 #include <nstd/List.h>
 #include <nstd/Time.h>
 
+#include "LockFreeQueueCpp11.h"
 #include "LockFreeQueue.h"
 #include "LockFreeQueueSlow1.h"
 #include "LockFreeQueueSlow2.h"
@@ -199,6 +200,7 @@ int main(int argc, char* argv[])
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
+    testQueue<LockFreeQueueCpp11<int> >("LockFreeQueueCpp11");
     testQueue<mpmc_bounded_queue<int> >("mpmc_bounded_queue");
     testQueue<LockFreeQueue<int> >("LockFreeQueue");
     testQueue<LockFreeQueueSlow1<int> >("LockFreeQueueSlow1");
