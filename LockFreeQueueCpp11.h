@@ -32,7 +32,7 @@ public:
   ~LockFreeQueueCpp11()
   {
     for(usize i = _head; i != _tail; ++i)
-      (&_queue[i % _capacity].data)->~T();
+      (&_queue[i & _capacityMask].data)->~T();
 
     delete [] (char*)_queue;
   }

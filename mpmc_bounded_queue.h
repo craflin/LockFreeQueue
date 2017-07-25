@@ -53,10 +53,15 @@ public:
     delete [] buffer_;
   }
 
-  usize size() const
+  size_t size() const
   {
-    usize head = dequeue_pos_.load(std::memory_order_acquire);;
+    size_t head = dequeue_pos_.load(std::memory_order_acquire);;
     return enqueue_pos_.load(std::memory_order_relaxed) - head;
+  }
+
+  size_t capacity() const
+  {
+    return buffer_mask_ + 1;
   }
 
   bool push(T const& data)

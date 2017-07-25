@@ -32,7 +32,7 @@ public:
   ~LockFreeQueue()
   {
     for(usize i = _head; i != _tail; ++i)
-      (&_queue[i % _capacity].data)->~T();
+      (&_queue[i & _capacityMask].data)->~T();
 
     Memory::free(_queue);
   }

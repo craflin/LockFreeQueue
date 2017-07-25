@@ -13,6 +13,7 @@
 #include "MutexLockQueue.h"
 #include "SpinLockQueue.h"
 #include "mpmc_bounded_queue.h"
+#include "LockFreeLifoQueue.h"
 
 static const int testItems = 250000 * 64 / 3 * 10;
 static const int testThreadConsumerThreads = 8;
@@ -24,6 +25,7 @@ template<typename T> class IQueue
 {
 public:
   virtual usize size() const = 0;
+  virtual usize capacity() const = 0;
   virtual bool push(const T& data) = 0;
   virtual bool pop(T& result) = 0;
 };
@@ -33,14 +35,15 @@ template<typename T, class Q> class TestQueue : public IQueue<T>
 public:
   TestQueue(usize size) : queue(size) {}
   usize size() const {return queue.size();}
+  usize capacity() const {return queue.capacity();}
   bool push(const T& data) {return queue.push(data);}
   bool pop(T& result) {return queue.pop(result);}
 private:
   Q queue;
 };
 
-volatile size_t producerSum;
-volatile size_t consumerSum;
+volatile usize producerSum;
+volatile usize consumerSum;
 volatile int64 maxPushDuration;
 volatile int64 maxPopDuration;
 
@@ -103,7 +106,7 @@ uint consumerThread(void* param)
   return 0;
 }
 
-template<class Q> void testQueue(const String& name)
+template<class Q> void testQueue(const String& name, bool fifo = false)
 {
   Console::printf(_T("Testing %s... \n"), (const tchar*)name);
 
@@ -124,6 +127,7 @@ template<class Q> void testQueue(const String& name)
   {
     TestQueue<int, Q> queue(10000);
     int result;
+    ASSERT(queue.capacity() >= 10000);
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(42));
     ASSERT(queue.pop(result));
@@ -131,34 +135,23 @@ template<class Q> void testQueue(const String& name)
     ASSERT(!queue.pop(result));
   }
 
-  //{
-  //  TestQueue<int, Q> queue(0);
-  //  int result;
-  //  ASSERT(!queue.pop(result));
-  //  ASSERT(!queue.push(42));
-  //  ASSERT(!queue.pop(result));
-  //  ASSERT(!queue.push(42));
-  //}
-
   {
     TestQueue<int, Q> queue(2);
     int result;
+    ASSERT(queue.capacity() >= 2);
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(42));
     ASSERT(queue.push(43));
-    //ASSERT(!queue.push(44));
     ASSERT(queue.pop(result));
-    ASSERT(result == 42);
+    ASSERT(result == (fifo ? 43 : 42));
     ASSERT(queue.pop(result));
-    ASSERT(result == 43);
+    ASSERT(result == (fifo ? 42 : 43));
     ASSERT(!queue.pop(result));
     ASSERT(queue.push(44));
     ASSERT(queue.push(45));
-    //ASSERT(!queue.push(46));
     ASSERT(queue.pop(result));
-    ASSERT(result == 44);
+    ASSERT(result == (fifo ? 45 : 44));
     ASSERT(queue.push(47));
-    //ASSERT(!queue.push(48));
   }
 
   producerSum = 0;
@@ -200,6 +193,7 @@ int main(int argc, char* argv[])
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
+    testQueue<LockFreeLifoQueue<int> >("LockFreeLifoQueue", true);
     testQueue<LockFreeQueueCpp11<int> >("LockFreeQueueCpp11");
     testQueue<mpmc_bounded_queue<int> >("mpmc_bounded_queue");
     testQueue<LockFreeQueue<int> >("LockFreeQueue");
