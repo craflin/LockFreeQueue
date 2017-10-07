@@ -2,6 +2,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 
 template <typename T> class LockFreeQueueCpp11
 {

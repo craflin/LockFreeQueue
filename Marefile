@@ -23,6 +23,7 @@ targets = {
     }
     if platform == "Linux" {
       libs += { "pthread", "rt" }
+      cppFlags += { "-std=c++11" }
     }
     defines -= "NDEBUG"
   }
