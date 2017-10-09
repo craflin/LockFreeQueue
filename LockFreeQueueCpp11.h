@@ -7,7 +7,7 @@
 template <typename T> class LockFreeQueueCpp11
 {
 public:
-  explicit LockFreeQueueCpp11(usize capacity)
+  explicit LockFreeQueueCpp11(size_t capacity)
   {
     _capacityMask = capacity - 1;
     _capacityMask |= _capacityMask >> 1;
@@ -19,7 +19,7 @@ public:
     _capacity = _capacityMask + 1;
 
     _queue = (Node*)new char[sizeof(Node) * _capacity];
-    for(usize i = 0; i < _capacity; ++i)
+    for(size_t i = 0; i < _capacity; ++i)
     {
       _queue[i].tail.store(i, std::memory_order_relaxed);
       _queue[i].head.store(-1, std::memory_order_relaxed);
@@ -31,17 +31,17 @@ public:
 
   ~LockFreeQueueCpp11()
   {
-    for(usize i = _head; i != _tail; ++i)
+    for(size_t i = _head; i != _tail; ++i)
       (&_queue[i & _capacityMask].data)->~T();
 
     delete [] (char*)_queue;
   }
   
-  usize capacity() const {return _capacity;}
+  size_t capacity() const {return _capacity;}
   
-  usize size() const
+  size_t size() const
   {
-    usize head = _head.load(std::memory_order_acquire);
+    size_t head = _head.load(std::memory_order_acquire);
     return _tail.load(std::memory_order_relaxed) - head;
   }
   
@@ -89,9 +89,9 @@ private:
   };
 
 private:
-  usize _capacityMask;
+  size_t _capacityMask;
   Node* _queue;
-  usize _capacity;
+  size_t _capacity;
   char cacheLinePad1[64];
   std::atomic<size_t> _tail;
   char cacheLinePad2[64];
