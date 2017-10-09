@@ -1,7 +1,7 @@
 LockFreeQueue
 =============
 
-Here I am testing some multi-producer multi-consumer ring buffer FIFO queue implementations for fun.
+Here, I am testing some multi-producer multi-consumer bounded ring buffer FIFO queue implementations for fun.
 
 * [LockFreeQueueCpp11.h](LockFreeQueueCpp11.h) - The fastest lock free queue I managed to implement.
 * [mpmc_bounded_queue.h](mpmc_bounded_queue.h) - Bounded MPMC queue by [Dmitry Vyukov, 2011]
@@ -11,6 +11,10 @@ Here I am testing some multi-producer multi-consumer ring buffer FIFO queue impl
 * [LockFreeQueueSlow3.h](LockFreeQueueSlow3.h) - Another lock free queue almost as fast as LockFreeQueue.h.
 * [MutexLockQueue.h](MutexLockQueue.h) - A naive queue implementation that uses a conventional mutex lock (CriticalSecion / pthread-Mutex).
 * [SpinLockQueue.h](SpinLockQueue.h) - A naive queue implementation that uses an atomic TestAndSet-lock.
+
+And for the fun of it, here is a multi-producer multi-consumer LIFO queue:
+
+* [LockFreeLifoQueue.h](LockFreeLifoQueue.h) - A lock free multi-producer multi-consumer bounded LIFO queue.
 
 #### References
 
