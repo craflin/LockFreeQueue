@@ -78,9 +78,9 @@ private:
   };
 
 private:
-  usize _capacity;
   usize _capacityMask;
   Node* _queue;
+  usize _capacity;
   usize _head;
   usize _tail;
   mutable Mutex _mutex;

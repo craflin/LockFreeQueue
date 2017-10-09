@@ -133,9 +133,9 @@ private:
   };
 
 private:
-  usize _capacity;
   usize _capacityMask;
   Node* _queue;
+  usize _capacity;
   volatile usize _freeNodes;
   volatile usize _occupiedNodes;
   volatile usize _writeIndex;
