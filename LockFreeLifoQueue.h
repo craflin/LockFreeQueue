@@ -11,12 +11,8 @@ public:
     : _capacity(capacity)
   {
     _indexMask = capacity;
-    _indexMask |= _indexMask >> 1;
-    _indexMask |= _indexMask >> 2;
-    _indexMask |= _indexMask >> 4;
-    _indexMask |= _indexMask >> 8;
-    _indexMask |= _indexMask >> 16;
-    _indexMask |= _indexMask >> 32;
+    for(usize i = 1; i <= sizeof(void*) * 4; i <<= 1)
+      _indexMask |= _indexMask >> i;
     _abaOffset = _indexMask + 1;
 
     _queue = (Node*)Memory::alloc(sizeof(Node) * (capacity + 1));

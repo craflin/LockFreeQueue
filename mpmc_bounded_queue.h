@@ -26,12 +26,8 @@ private:
   static inline size_t nextPowerOfTwo(size_t buffer_size)
   {
     size_t result = buffer_size - 1;
-    result |= result >> 1;
-    result |= result >> 2;
-    result |= result >> 4;
-    result |= result >> 8;
-    result |= result >> 16;
-    result |= result >> 32;
+    for(size_t i = 1; i <= sizeof(void*) * 4; i <<= 1)
+      result |= result >> i;
     return result + 1;
   }
 public:

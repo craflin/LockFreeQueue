@@ -10,12 +10,8 @@ public:
   explicit MutexLockQueue(usize capacity)
   {
     _capacityMask = capacity - 1;
-    _capacityMask |= _capacityMask >> 1;
-    _capacityMask |= _capacityMask >> 2;
-    _capacityMask |= _capacityMask >> 4;
-    _capacityMask |= _capacityMask >> 8;
-    _capacityMask |= _capacityMask >> 16;
-    _capacityMask |= _capacityMask >> 32;
+    for(usize i = 1; i <= sizeof(void*) * 4; i <<= 1)
+      _capacityMask |= _capacityMask >> i;
     _capacity = _capacityMask + 1;
 
     _queue = (Node*)Memory::alloc(sizeof(Node) * _capacity);
