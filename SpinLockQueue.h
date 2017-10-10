@@ -39,7 +39,7 @@ public:
     usize result;
     while(Atomic::testAndSet(_lock) != 0);
     result = _tail - _head;
-    Atomic::swap(_lock, 0);
+    Atomic::store(_lock, 0);
     return result;
   }
   
@@ -53,7 +53,7 @@ public:
     }
     Node& node = _queue[(_tail++) & _capacityMask];
     new (&node.data)T(data);
-    Atomic::swap(_lock, 0);
+    Atomic::store(_lock, 0);
     return true;
   }
   
@@ -68,7 +68,7 @@ public:
     Node& node = _queue[(_head++) & _capacityMask];
     result = node.data;
     (&node.data)->~T();
-    Atomic::swap(_lock, 0);
+    Atomic::store(_lock, 0);
     return true;
   }
 

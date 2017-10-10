@@ -41,8 +41,7 @@ public:
   
   usize size() const
   {
-    usize head = _head;
-    Atomic::memoryBarrier();
+    usize head = Atomic::load(_head);
     return _tail - head;
   }
   
@@ -60,7 +59,7 @@ public:
       {
         Atomic::compareAndSwap(_tail, tail, newTail);
         new (&node->data)T(data);
-        Atomic::swap(node->head, tail);
+        Atomic::store(node->head, tail);
         return true;
       }
     }
@@ -88,7 +87,7 @@ public:
         Atomic::compareAndSwap(_head, head, newHead);
         result = node->data;
         (&node->data)->~T();
-        Atomic::swap(node->tail, head + _capacity);
+        Atomic::store(node->tail, head + _capacity);
         return true;
       }
     }

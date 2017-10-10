@@ -193,7 +193,6 @@ int main(int argc, char* argv[])
   for(int i = 0; i < 3; ++i)
   {
     Console::printf(_T("--- Run %d ---\n"), i);
-    testQueue<LockFreeLifoQueue<int> >("LockFreeLifoQueue", true);
     testQueue<LockFreeQueueCpp11<int> >("LockFreeQueueCpp11");
     testQueue<mpmc_bounded_queue<int> >("mpmc_bounded_queue");
     testQueue<LockFreeQueue<int> >("LockFreeQueue");
@@ -202,6 +201,7 @@ int main(int argc, char* argv[])
     testQueue<LockFreeQueueSlow3<int> >("LockFreeQueueSlow3");
     testQueue<MutexLockQueue<int> >("MutexLockQueue");
     testQueue<SpinLockQueue<int> >("SpinLockQueue");
+    testQueue<LockFreeLifoQueue<int> >("LockFreeLifoQueue", true);
   }
 
   return 0;

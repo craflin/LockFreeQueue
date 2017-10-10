@@ -61,7 +61,7 @@ public:
     Node* node = &_queue[writeIndex & _capacityMask];
     ASSERT(node->state == Node::free);
     new (&node->data)T(data);
-    Atomic::swap(node->state, Node::set);
+    Atomic::store(node->state, Node::set);
   commit:
     usize safeWriteIndex = _safeWriteIndex;
     usize nextSafeWriteIndex = safeWriteIndex + 1;
@@ -96,7 +96,7 @@ public:
     ASSERT(node->state == Node::occupied);
     result = node->data;
     (&node->data)->~T();
-    Atomic::swap(node->state, Node::unset);
+    Atomic::store(node->state, Node::unset);
   release:
     usize safeReadIndex = _safeReadIndex;
     usize nextSafeReadIndex = safeReadIndex + 1;
