@@ -48,7 +48,7 @@ public:
     for(;; tail = next)
     {
       node = &_queue[tail & _capacityMask];
-      if(node->tail != tail)
+      if(Atomic::load(node->tail) != tail)
         return false;
       if((next = Atomic::compareAndSwap(_tail, tail, tail + 1)) == tail)
         break;
@@ -65,7 +65,7 @@ public:
     for(;; head = next)
     {
       node = &_queue[head & _capacityMask];
-      if(node->head != head)
+      if(Atomic::load(node->head) != head)
         return false;
       if((next = Atomic::compareAndSwap(_head, head, head + 1)) == head)
         break;
@@ -80,8 +80,8 @@ private:
   struct Node
   {
     T data;
-    volatile usize tail;
-    volatile usize head;
+    usize tail;
+    usize head;
   };
 
 private:
@@ -89,8 +89,8 @@ private:
   Node* _queue;
   usize _capacity;
   char cacheLinePad1[64];
-  volatile usize _tail;
+  usize _tail;
   char cacheLinePad2[64];
-  volatile usize _head;
+  usize _head;
   char cacheLinePad3[64];
 };
